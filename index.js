@@ -1,11 +1,46 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { Client, Events, GatewayIntentBits, Collection } = require('discord.js');
+const { Telegraf } = require('telegraf');
 
 const dotenv = require('dotenv');
 dotenv.config();
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const { QuickDB } = require('quick.db');
+const db = new QuickDB();
+
+//Telegram
+const bot = new Telegraf(process.env.TELEGRAM_TOKEN);
+bot.command('start', (ctx) => {
+	ctx.reply(
+		'Используйте команду /register, чтобы добавить себя в список, и команду /delete для удаления себя из списка'
+	);
+});
+bot.command('register', async (ctx) => {
+	const users = await db.get('users.id');
+	if (users == undefined) {
+		await db.set('users', { id: [] });
+	}
+	if (users.find((user) => user === ctx.from.id)) {
+		ctx.reply('Вы уже зарегистрированы');
+	} else {
+		await db.push('users.id', ctx.from.id);
+		ctx.reply('Вы добавлены в список');
+	}
+});
+bot.command('delete', async (ctx) => {
+	const users = await db.get('users.id');
+	if (users == undefined) return;
+	await db.pull('users.id', ctx.from.id);
+	ctx.reply('Запись удалена');
+});
+
+bot.launch();
+
+// Discord
+const client = new Client({
+	intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],
+});
 
 client.commands = new Collection();
 
@@ -51,4 +86,38 @@ client.on(Events.InteractionCreate, async (interaction) => {
 	}
 });
 
-client.login(process.env.TOKEN);
+client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
+	if (newState.channelId === null) {
+		const users = await db.get('users.id');
+		if (users == undefined) return;
+		users.forEach((user) => {
+			bot.telegram.sendMessage(
+				user,
+				`${
+					client.users.cache.find((user) => user.id === newState.id).username
+				} вышел из ${
+					client.channels.cache.find(
+						(channel) => channel.id === oldState.channelId
+					).name
+				}`
+			);
+		});
+	} else {
+		const users = await db.get('users.id');
+		if (users == undefined) return;
+		users.forEach((user) => {
+			bot.telegram.sendMessage(
+				user,
+				`${
+					client.users.cache.find((user) => user.id === newState.id).username
+				} зашел в ${
+					client.channels.cache.find(
+						(channel) => channel.id === newState.channelId
+					).name
+				}`
+			);
+		});
+	}
+});
+
+client.login(process.env.DISCORD_TOKEN);
