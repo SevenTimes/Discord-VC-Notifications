@@ -94,8 +94,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
-	console.log(oldState);
-	console.log(newState);
 	if (
 		newState.channelId === oldState.channelId &&
 		newState.streaming === oldState.streaming
