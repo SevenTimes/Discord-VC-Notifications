@@ -1,6 +1,13 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { Client, Events, GatewayIntentBits, Collection } = require('discord.js');
+const {
+	Client,
+	Events,
+	GatewayIntentBits,
+	Collection,
+	ActivityType,
+	NewsChannel,
+} = require('discord.js');
 const { Telegraf } = require('telegraf');
 
 const dotenv = require('dotenv');
@@ -87,24 +94,44 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
+	if (
+		newState.channelId === oldState.channelId &&
+		newState.streaming === oldState.streaming
+	)
+		return;
+
 	const hasUserLeft = newState.channelId === null;
 	const userName = client.users.cache.find((user) => user.id === newState.id).username;
 
 	if (hasUserLeft) {
-		sendMessageToAllUsers(oldState.channelId, userName, 'вышел из');
-	} else {
-		sendMessageToAllUsers(newState.channelId, userName, 'зашел в');
+		sendMessageToAllUsers(oldState.channelId, `${ userName } вышел из`);
+	}  else if (newState.streaming && newState.streaming !== oldState.streaming) {
+		sendMessageToChannel(newState.channelId, `${ userName } начал стрим в`)
+	} else if (newState.channelId !== oldState.channelId) {
+		sendMessageToAllUsers(newState.channelId, `${ userName } зашел в`);
 	}
 });
 
-async function sendMessageToAllUsers(channelId, userName, message) {
+async function sendMessageToAllUsers(channelId, message) {
 	const users = await db.get('users.id');
 	if (users == undefined) return;
 
 	const channelName = client.channels.cache.find((channel) => channel.id === channelId).name;
-	const messageToSend = `${ userName } ${ message } ${ channelName }`
+	const messageToSend = `${ message } ${ channelName }`
 	users.forEach((user) => bot.telegram.sendMessage(user, messageToSend));
-	
+}
+
+async function sendMessageToChannel(channelId, message) {
+	const channelName = client.channels.cache.find(
+		(channel) => channel.id === channelId
+	).name;
+
+	await bot.telegram
+			.sendMessage(
+				process.env.TELEGRAM_CHANNEL_ID,
+				`${message} ${ channelName }`
+			)
+			.catch((err) => console.error(err));
 }
 
 client.login(process.env.DISCORD_TOKEN);
