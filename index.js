@@ -99,50 +99,42 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
 		newState.streaming === oldState.streaming
 	)
 		return;
-	if (newState.channelId === null) {
-		const users = await db.get('users.id');
-		if (users == undefined) return;
-		users.forEach((user) => {
-			bot.telegram.sendMessage(
-				user,
-				`${
-					client.users.cache.find((user) => user.id === newState.id).username
-				} вышел из ${
-					client.channels.cache.find(
-						(channel) => channel.id === oldState.channelId
-					).name
-				}`
-			);
-		});
-	} else if (newState.streaming && newState.streaming !== oldState.streaming) {
-		await bot.telegram
-			.sendMessage(
-				process.env.TELEGRAM_CHANNEL_ID,
-				`${
-					client.users.cache.find((user) => user.id === newState.id).username
-				} начал стрим в ${
-					client.channels.cache.find(
-						(channel) => channel.id === newState.channelId
-					).name
-				}`
-			)
-			.catch((err) => console.error(err));
-	} else if (newState.channelId !== oldState.channelId) {
-		const users = await db.get('users.id');
-		if (users == undefined) return;
-		users.forEach((user) => {
-			bot.telegram.sendMessage(
-				user,
-				`${
-					client.users.cache.find((user) => user.id === newState.id).username
-				} зашел в ${
-					client.channels.cache.find(
-						(channel) => channel.id === newState.channelId
-					).name
-				}`
-			);
-		});
+
+	const hasUserLeft = newState.channelId === null;
+	const hasUserJoined = newState.channelId !== oldState.channelId;
+	const hasUserStartStream = newState.streaming && newState.streaming !== oldState.streaming;
+	const userName = client.users.cache.find((user) => user.id === newState.id).username;
+
+	if (hasUserLeft) {
+		return await sendMessageToAllUsers(oldState.channelId, `${ userName } вышел из`);
+	} 
+	
+	if (hasUserStartStream) {
+		return await sendMessageToChannel(newState.channelId, `${ userName } начал стрим в`)
+	}
+	
+	if (hasUserJoined) {
+		return await sendMessageToAllUsers(newState.channelId, `${ userName } зашел в`);
 	}
 });
+
+async function sendMessageToAllUsers(channelId, message) {
+	const users = await db.get('users.id');
+	if (users == undefined) return;
+
+	const channelName = client.channels.cache.find((channel) => channel.id === channelId).name;
+	users.forEach((user) => bot.telegram.sendMessage(user, `${ message } ${ channelName }`));
+}
+
+async function sendMessageToChannel(channelId, message) {
+	const channelName = client.channels.cache.find((channel) => channel.id === channelId).name;
+
+	await bot.telegram
+			.sendMessage(
+				process.env.TELEGRAM_CHANNEL_ID,
+				`${message} ${ channelName }`
+			)
+			.catch((err) => console.error(err));
+}
 
 client.login(process.env.DISCORD_TOKEN);
