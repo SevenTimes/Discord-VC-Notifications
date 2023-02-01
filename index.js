@@ -97,7 +97,7 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
 	}
 });
 
-function sendMessageToAllUsers(channelId, userName, message) {
+async function sendMessageToAllUsers(channelId, userName, message) {
 	const users = await db.get('users.id');
 	if (users == undefined) return;
 
