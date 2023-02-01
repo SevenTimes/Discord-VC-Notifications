@@ -1,6 +1,13 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { Client, Events, GatewayIntentBits, Collection } = require('discord.js');
+const {
+	Client,
+	Events,
+	GatewayIntentBits,
+	Collection,
+	ActivityType,
+	NewsChannel,
+} = require('discord.js');
 const { Telegraf } = require('telegraf');
 
 const dotenv = require('dotenv');
@@ -87,6 +94,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
+	console.log(oldState);
+	console.log(newState);
+	if (
+		newState.channelId === oldState.channelId &&
+		newState.streaming === oldState.streaming
+	)
+		return;
 	if (newState.channelId === null) {
 		const users = await db.get('users.id');
 		if (users == undefined) return;
@@ -102,7 +116,20 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
 				}`
 			);
 		});
-	} else {
+	} else if (newState.streaming && newState.streaming !== oldState.streaming) {
+		await bot.telegram
+			.sendMessage(
+				process.env.TELEGRAM_CHANNEL_ID,
+				`${
+					client.users.cache.find((user) => user.id === newState.id).username
+				} начал стрим в ${
+					client.channels.cache.find(
+						(channel) => channel.id === newState.channelId
+					).name
+				}`
+			)
+			.catch((err) => console.error(err));
+	} else if (newState.channelId !== oldState.channelId) {
 		const users = await db.get('users.id');
 		if (users == undefined) return;
 		users.forEach((user) => {
