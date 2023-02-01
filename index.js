@@ -101,14 +101,20 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
 		return;
 
 	const hasUserLeft = newState.channelId === null;
+	const hasUserJoined = newState.channelId !== oldState.channelId;
+	const hasUserStartStream = newState.streaming && newState.streaming !== oldState.streaming;
 	const userName = client.users.cache.find((user) => user.id === newState.id).username;
 
 	if (hasUserLeft) {
-		sendMessageToAllUsers(oldState.channelId, `${ userName } вышел из`);
-	}  else if (newState.streaming && newState.streaming !== oldState.streaming) {
-		sendMessageToChannel(newState.channelId, `${ userName } начал стрим в`)
-	} else if (newState.channelId !== oldState.channelId) {
-		sendMessageToAllUsers(newState.channelId, `${ userName } зашел в`);
+		return await sendMessageToAllUsers(oldState.channelId, `${ userName } вышел из`);
+	} 
+	
+	if (hasUserStartStream) {
+		return await sendMessageToChannel(newState.channelId, `${ userName } начал стрим в`)
+	}
+	
+	if (hasUserJoined) {
+		return await sendMessageToAllUsers(newState.channelId, `${ userName } зашел в`);
 	}
 });
 
@@ -122,9 +128,7 @@ async function sendMessageToAllUsers(channelId, message) {
 }
 
 async function sendMessageToChannel(channelId, message) {
-	const channelName = client.channels.cache.find(
-		(channel) => channel.id === channelId
-	).name;
+	const channelName = client.channels.cache.find((channel) => channel.id === channelId).name;
 
 	await bot.telegram
 			.sendMessage(
