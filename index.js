@@ -123,8 +123,7 @@ async function sendMessageToAllUsers(channelId, message) {
 	if (users == undefined) return;
 
 	const channelName = client.channels.cache.find((channel) => channel.id === channelId).name;
-	const messageToSend = `${ message } ${ channelName }`
-	users.forEach((user) => bot.telegram.sendMessage(user, messageToSend));
+	users.forEach((user) => bot.telegram.sendMessage(user, `${ message } ${ channelName }`));
 }
 
 async function sendMessageToChannel(channelId, message) {
