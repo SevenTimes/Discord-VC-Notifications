@@ -87,37 +87,24 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
-	if (newState.channelId === null) {
-		const users = await db.get('users.id');
-		if (users == undefined) return;
-		users.forEach((user) => {
-			bot.telegram.sendMessage(
-				user,
-				`${
-					client.users.cache.find((user) => user.id === newState.id).username
-				} вышел из ${
-					client.channels.cache.find(
-						(channel) => channel.id === oldState.channelId
-					).name
-				}`
-			);
-		});
+	const hasUserLeft = newState.channelId === null;
+	const userName = client.users.cache.find((user) => user.id === newState.id).username;
+
+	if (hasUserLeft) {
+		sendMessageToAllUsers(oldState.channelId, userName, 'вышел из');
 	} else {
-		const users = await db.get('users.id');
-		if (users == undefined) return;
-		users.forEach((user) => {
-			bot.telegram.sendMessage(
-				user,
-				`${
-					client.users.cache.find((user) => user.id === newState.id).username
-				} зашел в ${
-					client.channels.cache.find(
-						(channel) => channel.id === newState.channelId
-					).name
-				}`
-			);
-		});
+		sendMessageToAllUsers(newState.channelId, userName, 'зашел в');
 	}
 });
+
+function sendMessageToAllUsers(channelId, userName, message) {
+	const users = await db.get('users.id');
+	if (users == undefined) return;
+
+	const channelName = client.channels.cache.find((channel) => channel.id === channelId).name;
+	const messageToSend = `${ userName } ${ message } ${ channelName }`
+	users.forEach((user) => bot.telegram.sendMessage(user, messageToSend));
+	
+}
 
 client.login(process.env.DISCORD_TOKEN);
